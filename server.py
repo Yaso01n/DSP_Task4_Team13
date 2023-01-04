@@ -13,6 +13,7 @@ import plotly.express as px
 import skimage.io 
 from skimage.color import rgb2gray
 from image import Processing
+import json
 
 app = Flask(__name__,template_folder="templates")
 
@@ -62,35 +63,50 @@ def save_output(img_output,name):
     return encoded_img_data3   
 
 
-data=[]
-images=[]
+image1_object=Processing('image1.jpg')
+image2_object=Processing('image2.jpg')
 
 @app.route('/', methods=['POST','GET'])
 def home():
+
+    global image1_object
+    global image2_object
+
     if request.method == "POST":
-        file= request.files['image'].read()   # /// read image
+
+        if  request.get_json() != None:
+            output = request.get_json()
+            co = json.loads(output)
+            image1_object.reconstruct(image2_object,co['Mag_rectangle_x: ' ]
+            ,co['Mag_rectangle_y: '],co['Mag_rectangle_width: ' ],co['Mag_rectangle_height: '],
+            co['Phase_rectangle_x: '],co['Phase_rectangle_y: '],co['Phase_rectangle_width: '],co[ 'Phase_rectangle_height: ' ])
+            print(co)
+            rec=save_output(image1_object.img_output,"reconstructed.jpg")
+            return jsonify({'status':str(rec)})
+
+        
+        file= request.files['image'].read()   
         default_value = '0'
-        name = request.form.get('name', default_value)   # //// to know which image is sent (image1 or iamge2)
+        name = request.form.get('name', default_value)   
         write_file_to_image(file)  
-        img = skimage.io.imread("image.jpg") 
+        img = skimage.io.imread("image.jpg")
+
+       
+        
         if name==str(1):
             cv2.imwrite('image1.jpg', img)  
-            image1_object =Processing('image1.jpg')
-            data.append(image1_object.magnitude)
-            data.append(image1_object.phase)
+            image1_object =Processing('image1.jpg',400,750,60)
             encoded_img_data1,encoded_img_data2= savefigures(image1_object.magnitude_spectrum,"mag1.jpg",image1_object.phase_spectrum,"phase1.jpg")
-            image1_object.combine(image1_object.magnitude,image1_object.phase)
-            rec=save_output(image1_object.img_output,"rec.jpg")
-        else :
+            return jsonify({'status':str(encoded_img_data1),'status2':str(encoded_img_data2)})
+
+        elif name==str(2):
             cv2.imwrite('image2.jpg', img)
-            image2_object=Processing('image2.jpg')
-            data.append(image2_object.magnitude)
-            data.append(image2_object.phase)
+            image2_object=Processing('image2.jpg',400,750,400)
             encoded_img_data1,encoded_img_data2=savefigures(image2_object.magnitude_spectrum,"mag2.jpg",image2_object.phase_spectrum,"phase2.jpg")
-            image2_object.combine(data[0],data[3])
-            rec=save_output(image2_object.img_output,"rec1.jpg")
-            data.clear()
-        return jsonify({'status':str(encoded_img_data1),'status2':str(encoded_img_data2),'status3':str(rec)})     
+            return jsonify({'status':str(encoded_img_data1),'status2':str(encoded_img_data2)})
+
+        
+        
     return render_template('test.html')
 
 
